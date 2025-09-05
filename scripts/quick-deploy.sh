@@ -10,8 +10,9 @@ error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
 REPO_URL=${REPO_URL:-"https://github.com/clover-eric/mi-adp.git"}
 APP_DIR=${APP_DIR:-"/opt/mi-tv-app-installer"}
 BRANCH=${BRANCH:-"main"}
+SKIP_CHOWN=${SKIP_CHOWN:-"0"}
 
-# 检查/安装 Docker & Compose
+# 检查/安装 Docker & Compose & Git
 ensure_docker() {
   if ! command -v docker >/dev/null 2>&1; then
     info "Installing Docker..."
@@ -24,13 +25,38 @@ ensure_docker() {
     curl -SL "$COMPOSE_URL" -o ~/.docker/cli-plugins/docker-compose
     chmod +x ~/.docker/cli-plugins/docker-compose
   fi
-  sudo usermod -aG docker "$USER" || true
+  if ! command -v git >/dev/null 2>&1; then
+    info "Installing git..."
+    if command -v apt-get >/dev/null 2>&1; then
+      sudo apt-get update && sudo apt-get install -y git
+    elif command -v yum >/dev/null 2>&1; then
+      sudo yum install -y git
+    elif command -v dnf >/dev/null 2>&1; then
+      sudo dnf install -y git
+    else
+      warn "No known package manager found. Please install git manually."
+    fi
+  fi
+  sudo usermod -aG docker "${USER}" || true
+}
+
+safe_chown() {
+  # root 或显式跳过时不更改所有权
+  if [ "$(id -u)" -eq 0 ] || [ "$SKIP_CHOWN" = "1" ]; then
+    return 0
+  fi
+  local uid gid
+  uid=$(id -u) || return 0
+  gid=$(id -g) || gid="$uid"
+  # 优先使用数值 uid:gid，避免“invalid group”错误
+  sudo chown -R "${uid}:${gid}" "$APP_DIR" 2>/dev/null || \
+  sudo chown -R "${USER}:${USER}" "$APP_DIR" 2>/dev/null || true
 }
 
 # 获取代码
 sync_repo() {
   sudo mkdir -p "$APP_DIR"
-  sudo chown -R "$USER":"$USER" "$APP_DIR"
+  safe_chown
   if [ -d "$APP_DIR/.git" ]; then
     info "Updating existing repo in $APP_DIR"
     git -C "$APP_DIR" fetch --all --prune
