@@ -97,7 +97,11 @@ up_stack() {
   info "Building and starting containers..."
   cd "$APP_DIR"
   maybe_set_mirror_images
-  docker compose up -d --build
+  info "docker compose build with BASE_NODE_IMAGE=${BASE_NODE_IMAGE} BASE_NGINX_IMAGE=${BASE_NGINX_IMAGE}"
+  docker compose build \
+    --build-arg BASE_NODE_IMAGE="${BASE_NODE_IMAGE}" \
+    --build-arg BASE_NGINX_IMAGE="${BASE_NGINX_IMAGE}"
+  docker compose up -d
   success "Deployed. Visit http://<server-ip>/"
 }
 
