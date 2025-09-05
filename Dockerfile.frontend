@@ -1,12 +1,14 @@
 # frontend Dockerfile
-FROM node:20-slim AS build
+ARG BASE_NODE_IMAGE=node:20-slim
+FROM ${BASE_NODE_IMAGE} AS build
 WORKDIR /app
 COPY frontend/package.json ./
 RUN npm i
 COPY frontend ./
 RUN npm run build
 
-FROM nginx:1.27-alpine AS serve
+ARG BASE_NGINX_IMAGE=nginx:1.27-alpine
+FROM ${BASE_NGINX_IMAGE} AS serve
 WORKDIR /usr/share/nginx/html
 COPY --from=build /app/dist ./
 COPY nginx.conf /etc/nginx/conf.d/default.conf

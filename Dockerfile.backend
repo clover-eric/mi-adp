@@ -1,5 +1,6 @@
 # backend Dockerfile
-FROM node:20-slim
+ARG BASE_NODE_IMAGE=node:20-slim
+FROM ${BASE_NODE_IMAGE}
 
 # 安装 adb
 RUN apt-get update \

@@ -1,9 +1,10 @@
-version: "3.9"
 services:
   backend:
     build:
       context: .
       dockerfile: Dockerfile.backend
+      args:
+        BASE_NODE_IMAGE: ${BASE_NODE_IMAGE:-node:20-slim}
     container_name: mitv-backend
     environment:
       - NODE_ENV=production
@@ -19,6 +20,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+      args:
+        BASE_NODE_IMAGE: ${BASE_NODE_IMAGE:-node:20-slim}
+        BASE_NGINX_IMAGE: ${BASE_NGINX_IMAGE:-nginx:1.27-alpine}
     container_name: mitv-frontend
     ports:
       - "80:80"
