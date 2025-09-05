@@ -11,6 +11,30 @@ REPO_URL=${REPO_URL:-"https://github.com/clover-eric/mi-adp.git"}
 APP_DIR=${APP_DIR:-"/opt/mi-tv-app-installer"}
 BRANCH=${BRANCH:-"main"}
 SKIP_CHOWN=${SKIP_CHOWN:-"0"}
+# 基础镜像（可被环境变量覆盖）
+BASE_NODE_IMAGE=${BASE_NODE_IMAGE:-"node:20-slim"}
+BASE_NGINX_IMAGE=${BASE_NGINX_IMAGE:-"nginx:1.27-alpine"}
+
+# 检测 Docker Hub 可访问性，失败则回退镜像代理
+maybe_set_mirror_images() {
+  # 如果用户已自定义则不覆盖
+  if [ "${BASE_NODE_IMAGE}" != "node:20-slim" ] || [ "${BASE_NGINX_IMAGE}" != "nginx:1.27-alpine" ]; then
+    info "Using custom base images: NODE=${BASE_NODE_IMAGE}, NGINX=${BASE_NGINX_IMAGE}"
+    export BASE_NODE_IMAGE BASE_NGINX_IMAGE
+    return 0
+  fi
+  # 访问 Docker Registry V2 端点，正常应返回 401 JSON
+  if curl -fsSL --max-time 4 https://registry-1.docker.io/v2/ >/dev/null 2>&1; then
+    info "Docker Hub reachable. Using default base images."
+    export BASE_NODE_IMAGE BASE_NGINX_IMAGE
+    return 0
+  fi
+  warn "Docker Hub seems unreachable. Switching to mirror base images."
+  BASE_NODE_IMAGE="dockerproxy.com/library/node:20-slim"
+  BASE_NGINX_IMAGE="dockerproxy.com/library/nginx:1.27-alpine"
+  export BASE_NODE_IMAGE BASE_NGINX_IMAGE
+  info "Mirror base images: NODE=${BASE_NODE_IMAGE}, NGINX=${BASE_NGINX_IMAGE}"
+}
 
 # 检查/安装 Docker & Compose & Git
 ensure_docker() {
@@ -72,6 +96,7 @@ sync_repo() {
 up_stack() {
   info "Building and starting containers..."
   cd "$APP_DIR"
+  maybe_set_mirror_images
   docker compose up -d --build
   success "Deployed. Visit http://<server-ip>/"
 }
